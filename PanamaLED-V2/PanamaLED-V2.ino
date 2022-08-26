@@ -6,6 +6,7 @@
 #include <EEPROM.h>
 #include <JC_Button.h>
 
+# define MIC_GAIN 10                // Gain on mic signal
 # define LEFT_OUT_PIN 2             // Left channel data out pin to LEDs [6]
 # define RIGHT_OUT_PIN 4            // Right channel data out pin to LEDs [5]
 # define LEFT_IN_PIN A0             // Left aux in signal [A5]
@@ -13,11 +14,11 @@
 # define BTN_PIN D3                 // Push button on this pin [3]
 # define DEBOUNCE_MS 20             // Number of ms to debounce the button [20]
 # define LONG_PRESS 500             // Number of ms to hold the button to count as long press [500]
-# define N_PIXELS 35                // Number of pixels in each string [24]
+# define N_PIXELS 34                // Number of pixels in each string [24]
 # define MAX_MILLIAMPS 500          // Maximum current to draw [500]
 # define COLOR_ORDER GRB            // Colour order of LED strip [GRB]
 # define LED_TYPE WS2812B           // LED string type [WS2812B]
-# define NOISE 5                    // Noise/hum/interference in aux signal [10]
+# define NOISE 1                    // Noise/hum/interference in aux signal [10]
 # define SAMPLES 60                 // Length of buffer for dynamic level adjustment [60]
 # define TOP (N_PIXELS + 2)         // Allow dot to go slightly off scale [(N_PIXELS + 2)]
 # define PEAK_FALL 20               // Rate of peak falling dot [20]
@@ -57,6 +58,8 @@ void sinelon();
 void twinkle();
 void rainbow(uint8_t rate);
 
+#define NUM_VISUALS 14
+
 // --------------------
 // --- Button Stuff ---
 // --------------------
@@ -67,7 +70,7 @@ Button modeBtn(BTN_PIN, DEBOUNCE_MS);
 
 
 void incrementButtonPushCounter() {
-  buttonPushCounter = ++buttonPushCounter %14;
+  buttonPushCounter = ++buttonPushCounter % NUM_VISUALS;
   EEPROM.write(1, buttonPushCounter);
 }
 
@@ -93,10 +96,10 @@ void setup() {
   FastLED.setMaxPowerInVoltsAndMilliamps(5, MAX_MILLIAMPS);
 
   modeBtn.begin();
-  Serial.begin(57600);
+  Serial.begin(115200);
 
-  buttonPushCounter = (int)EEPROM.read(1); // load previous setting
-  buttonPushCounter = 0;
+  buttonPushCounter = (int)EEPROM.read(1) % NUM_VISUALS; // load previous setting
+  //buttonPushCounter = 0;
   Serial.print("Starting pattern ");
   Serial.println(buttonPushCounter);
 }
@@ -113,10 +116,10 @@ void loop() {
   switch (state) {
     case 0:                
       if (modeBtn.wasReleased()) {
-        Serial.print("Short press, pattern ");
-        Serial.println(buttonPushCounter);
         incrementButtonPushCounter();
         autoChangeVisuals = false;
+        Serial.print("Short press, pattern ");
+        Serial.println(buttonPushCounter);
       }
       else if (modeBtn.pressedFor(LONG_PRESS))
         state = 1;
@@ -238,8 +241,10 @@ int readLeft() {
     static int acc = 512 * 256;
     acc = acc - dc_offset + n;
     dc_offset = acc >> 8;
-
-    return n - dc_offset; // Center on zero  
+//Serial.println(n);
+//Serial.print("\t");
+//Serial.println((n - dc_offset) * MIC_GAIN);
+    return (n - dc_offset) * MIC_GAIN; // Center on zero  
 }
 
 int readRight() {
@@ -251,7 +256,7 @@ int readRight() {
     acc = acc - dc_offset + n;
     dc_offset = acc >> 8;
 
-    return n - dc_offset; // Center on zero  
+    return (n - dc_offset) * MIC_GAIN; // Center on zero  
 }
 
 uint16_t auxReading(uint8_t channel) {
@@ -283,6 +288,7 @@ uint16_t auxReading(uint8_t channel) {
 
   // Calculate bar height based on dynamic min/max levels (fixed point):
   height = constrain(height, 0, TOP);
+  Serial.println(height);
   return height;
 }
 
@@ -332,7 +338,7 @@ void averageReadings(uint8_t channel) {
       if (volLeft[i] < minLvl) minLvl = volLeft[i];
       else if (volLeft[i] > maxLvl) maxLvl = volLeft[i];
     }
-    if ((maxLvl - minLvl) < TOP) maxLvl = minLvl + TOP;
+    if ((maxLvl - minLvl) < TOP / 4) maxLvl = minLvl + TOP / 4;
     
     minLvlAvgLeft = (minLvlAvgLeft * 63 + minLvl) >> 6; // Dampen min/max levels
     maxLvlAvgLeft = (maxLvlAvgLeft * 63 + maxLvl) >> 6; // (fake rolling average)
@@ -344,7 +350,7 @@ void averageReadings(uint8_t channel) {
       if (volRight[i] < minLvl) minLvl = volRight[i];
       else if (volRight[i] > maxLvl) maxLvl = volRight[i];
     }
-    if ((maxLvl - minLvl) < TOP) maxLvl = minLvl + TOP;
+    if ((maxLvl - minLvl) < TOP / 4) maxLvl = minLvl + TOP / 4;
     minLvlAvgRight = (minLvlAvgRight * 63 + minLvl) >> 6; // Dampen min/max levels
     maxLvlAvgRight = (maxLvlAvgRight * 63 + maxLvl) >> 6; // (fake rolling average)
   }
