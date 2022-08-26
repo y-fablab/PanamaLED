@@ -171,7 +171,7 @@ inline void setAll(byte r, byte g, byte b) {
 }
 
 void showStrip() {
-    checkIntensity();
+    //checkIntensity();
     FastLED.show();
 }
 
