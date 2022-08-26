@@ -14,7 +14,7 @@
 # define BTN_PIN D3                 // Push button on this pin [3]
 # define DEBOUNCE_MS 20             // Number of ms to debounce the button [20]
 # define LONG_PRESS 500             // Number of ms to hold the button to count as long press [500]
-# define N_PIXELS 34                // Number of pixels in each string [24]
+# define N_PIXELS 35                // Number of pixels in each string [24]
 # define MAX_MILLIAMPS 500          // Maximum current to draw [500]
 # define COLOR_ORDER GRB            // Colour order of LED strip [GRB]
 # define LED_TYPE WS2812B           // LED string type [WS2812B]
